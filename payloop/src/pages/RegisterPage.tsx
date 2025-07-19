@@ -1,150 +1,99 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function RegisterPage() {
-  const navigate = useNavigate();
-  const { supabase } = useAuth();
-
-  const [formData, setFormData] = useState({
-    email: "",
-    businessName: "",
-    ownerName: "",
-    phone: "",
-    password: "",
-  });
-
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const navigate = useNavigate();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg("");
 
-  const handleRegister = async () => {
-    const { email, phone, password, businessName, ownerName } = formData;
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
 
-    if (!email || !phone || !password || !businessName || !ownerName) {
-      setError("All fields are required.");
+    if (error) {
+      setErrorMsg(error.message);
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
-    setError("");
+    // Update user metadata manually
+    const userId = data?.user?.id;
+    if (userId) {
+      const { error: updateError } = await supabase
+        .from("profiles") // or your user table
+        .update({
+          display_name: displayName,
+          phone_number: phoneNumber,
+        })
+        .eq("id", userId);
 
-    try {
-      // Step 1: Register user in Supabase Auth
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: ownerName,
-            phone,
-          },
-        },
-      });
-
-      if (signUpError) throw signUpError;
-
-      const userId = signUpData.user?.id;
-      if (!userId) throw new Error("Signup successful but user ID not returned.");
-
-      // Step 2: Insert into landlords table
-      const { error: insertError } = await supabase.from("landlords").insert({
-        id: userId,
-        business_name: businessName,
-        owner_name: ownerName,
-        phone,
-        email,
-      });
-
-      if (insertError) throw insertError;
-
-      navigate("/dashboard");
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Something went wrong during registration.");
-    } finally {
-      setLoading(false);
+      if (updateError) {
+        setErrorMsg(updateError.message);
+      }
     }
+
+    setLoading(false);
+    navigate("/dashboard");
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-      <Card className="w-full max-w-md shadow-lg border">
-        <CardContent className="space-y-5 py-8">
-          <h2 className="text-2xl font-bold text-center text-gray-800">Create Your Landlord Account</h2>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
+      <form
+        onSubmit={handleRegister}
+        className="bg-white p-6 rounded-xl shadow-lg w-full max-w-md space-y-4"
+      >
+        <h2 className="text-2xl font-bold text-center">Register</h2>
 
-          {error && (
-            <div className="flex items-center text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2 text-sm">
-              <AlertCircle className="w-4 h-4 mr-2" />
-              {error}
-            </div>
-          )}
+        <Input
+          type="text"
+          placeholder="Display Name"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+          required
+        />
+        <Input
+          type="tel"
+          placeholder="Phone Number"
+          value={phoneNumber}
+          onChange={(e) => setPhoneNumber(e.target.value)}
+          required
+        />
+        <Input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <Input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
 
-          <Input
-            type="email"
-            name="email"
-            placeholder="Email Address"
-            value={formData.email}
-            onChange={handleChange}
-            required
-          />
-          <Input
-            name="businessName"
-            placeholder="Business Name"
-            value={formData.businessName}
-            onChange={handleChange}
-            required
-          />
-          <Input
-            name="ownerName"
-            placeholder="Owner's Full Name"
-            value={formData.ownerName}
-            onChange={handleChange}
-            required
-          />
-          <Input
-            name="phone"
-            placeholder="Phone Number (e.g. +254712345678)"
-            value={formData.phone}
-            onChange={handleChange}
-            required
-          />
-          <Input
-            type="password"
-            name="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={handleChange}
-            required
-          />
+        {errorMsg && (
+          <p className="text-red-500 text-sm text-center">{errorMsg}</p>
+        )}
 
-          <Button
-            disabled={loading}
-            className="w-full"
-            onClick={handleRegister}
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Creating Account...
-              </>
-            ) : (
-              "Register"
-            )}
-          </Button>
-
-          <p className="text-center text-sm text-gray-500">
-            Already have an account? <a href="/login" className="text-blue-600 hover:underline">Sign In</a>
-          </p>
-        </CardContent>
-      </Card>
+        <Button type="submit" disabled={loading} className="w-full">
+          {loading ? "Registering..." : "Register"}
+        </Button>
+      </form>
     </div>
   );
 }
