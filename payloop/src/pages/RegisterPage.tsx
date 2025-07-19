@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Building2, Eye, EyeOff, AlertCircle, Check, RefreshCw } from 'lucide-react';
+import {
+  Building2, Eye, EyeOff, AlertCircle, Check, RefreshCw,
+} from 'lucide-react';
 
 const RegisterPage = () => {
   const [formData, setFormData] = useState({
@@ -12,6 +14,7 @@ const RegisterPage = () => {
     password: '',
     confirmPassword: '',
   });
+
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -19,35 +22,32 @@ const RegisterPage = () => {
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
+    const { password, confirmPassword } = formData;
+
+    if (password !== confirmPassword) {
+      return setError('Passwords do not match');
     }
 
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long');
-      return;
+    if (password.length < 6) {
+      return setError('Password must be at least 6 characters');
     }
 
     setIsLoading(true);
 
     try {
       await register(formData);
-      console.log("Navigating to dashboard");
-      navigate('/dashboard');
-    } catch (error: any) {
-       console.error("Register error:", error);
-      setError(error.message || 'Registration failed. Please try again.');
+      navigate('/dashboard'); // rely on context to confirm login
+    } catch (err: any) {
+      console.error("Register failed:", err);
+      setError(err.message || 'Registration failed. Try again.');
     } finally {
       setIsLoading(false);
     }
@@ -82,74 +82,29 @@ const RegisterPage = () => {
             </div>
           )}
 
-          <div>
-            <label htmlFor="businessName" className="block text-sm font-medium text-gray-700 mb-2">
-              Business Name
-            </label>
-            <input
-              type="text"
-              id="businessName"
-              name="businessName"
-              value={formData.businessName}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="e.g., Nairobi Properties Ltd"
-              required
-            />
-          </div>
+          {[
+            { name: 'businessName', label: 'Business Name', type: 'text', placeholder: 'e.g., Nairobi Properties Ltd' },
+            { name: 'ownerName', label: 'Owner Name', type: 'text', placeholder: 'Your full name' },
+            { name: 'phone', label: 'Phone Number', type: 'tel', placeholder: '+254712345678' },
+            { name: 'email', label: 'Email Address', type: 'email', placeholder: 'your@email.com' },
+          ].map(({ name, label, type, placeholder }) => (
+            <div key={name}>
+              <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+              <input
+                type={type}
+                id={name}
+                name={name}
+                value={formData[name as keyof typeof formData]}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder={placeholder}
+                required
+              />
+            </div>
+          ))}
 
           <div>
-            <label htmlFor="ownerName" className="block text-sm font-medium text-gray-700 mb-2">
-              Owner Name
-            </label>
-            <input
-              type="text"
-              id="ownerName"
-              name="ownerName"
-              value={formData.ownerName}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Your full name"
-              required
-            />
-          </div>
-
-          <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-              Phone Number
-            </label>
-            <input
-              type="tel"
-              id="phone"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="+254712345678"
-              required
-            />
-          </div>
-
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-              Email Address
-            </label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="your@email.com"
-              required
-            />
-          </div>
-
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">Password</label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
@@ -164,21 +119,15 @@ const RegisterPage = () => {
               <button
                 type="button"
                 className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={() => setShowPassword(prev => !prev)}
               >
-                {showPassword ? (
-                  <EyeOff className="h-5 w-5 text-gray-400" />
-                ) : (
-                  <Eye className="h-5 w-5 text-gray-400" />
-                )}
+                {showPassword ? <EyeOff className="h-5 w-5 text-gray-400" /> : <Eye className="h-5 w-5 text-gray-400" />}
               </button>
             </div>
           </div>
 
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-              Confirm Password
-            </label>
+            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
             <input
               type="password"
               id="confirmPassword"
@@ -194,7 +143,7 @@ const RegisterPage = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center"
           >
             {isLoading ? (
               <>
@@ -209,16 +158,14 @@ const RegisterPage = () => {
           <div className="text-center">
             <p className="text-gray-600">
               Already have an account?{' '}
-              <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">
-                Sign in
-              </Link>
+              <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">Sign in</Link>
             </p>
           </div>
 
           <p className="text-xs text-gray-500 text-center">
             By creating an account, you agree to our{' '}
             <a href="#" className="text-blue-600 hover:text-blue-700">Terms of Service</a> and{' '}
-            <a href="#" className="text-blue-600 hover:text-blue-700">Privacy Policy</a>
+            <a href="#" className="text-blue-600 hover:text-blue-700">Privacy Policy</a>.
           </p>
         </form>
       </div>
