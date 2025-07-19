@@ -9,13 +9,12 @@ const LoginPage = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const { login, user } = useAuth();
+  const { login, user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
 
+  // Redirect if already logged in
   useEffect(() => {
-    if (user) {
-      navigate('/dashboard');
-    }
+    if (user) navigate('/dashboard');
   }, [user]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -29,7 +28,7 @@ const LoginPage = () => {
 
     try {
       await login(formData.phone, formData.password);
-      navigate('/dashboard');
+      // No need to manually navigate, useEffect will handle it
     } catch (error: any) {
       setError(error.message || 'Invalid phone number or password');
     } finally {
@@ -56,16 +55,16 @@ const LoginPage = () => {
 
           <div>
             <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-              Phone Number
+              Phone Number or Email
             </label>
             <input
-              type="tel"
+              type="text"
               id="phone"
               name="phone"
               value={formData.phone}
               onChange={handleChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="+254712345678"
+              placeholder="+254712345678 or user@gmail.com"
               required
             />
           </div>
