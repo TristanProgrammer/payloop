@@ -43,8 +43,10 @@ const RegisterPage = () => {
 
     try {
       await register(formData);
+      console.log("Navigating to dashboard");
       navigate('/dashboard');
     } catch (error: any) {
+       console.error("Register error:", error);
       setError(error.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
