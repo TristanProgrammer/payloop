@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input"; // This should exist
+import { Button } from "@/components/button"; // Your current button
 import { supabase } from "@/lib/supabaseClient";
 
 export default function RegisterPage() {
@@ -29,11 +29,10 @@ export default function RegisterPage() {
       return;
     }
 
-    // Update user metadata manually
     const userId = data?.user?.id;
     if (userId) {
       const { error: updateError } = await supabase
-        .from("profiles") // or your user table
+        .from("profiles")
         .update({
           display_name: displayName,
           phone_number: phoneNumber,
@@ -55,11 +54,10 @@ export default function RegisterPage() {
         onSubmit={handleRegister}
         className="bg-white p-6 rounded-xl shadow-lg w-full max-w-md space-y-4"
       >
-        <h2 className="text-2xl font-bold text-center">Register</h2>
+        <h2 className="text-2xl font-bold text-center">Create an Account</h2>
 
         <Input
-          type="text"
-          placeholder="Display Name"
+          placeholder="Full Name"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
           required
