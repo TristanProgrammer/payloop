@@ -1,140 +1,103 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { Building2, Eye, EyeOff, AlertCircle, RefreshCw } from 'lucide-react';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
-const RegisterPage = () => {
-  const [formData, setFormData] = useState({
-    businessName: '',
-    ownerName: '',
-    phone: '',
-    password: '',
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
-  const { register, user } = useAuth();
+export default function RegisterPage() {
   const navigate = useNavigate();
+  const { supabase } = useAuth();
 
-  useEffect(() => {
-    if (user) {
-      navigate('/dashboard');
-    }
-  }, [user]);
+  const [businessName, setBusinessName] = useState("");
+  const [ownerName, setOwnerName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
+  const handleRegister = async () => {
+    setLoading(true);
+    setError("");
 
     try {
-      await register(formData);
-      navigate('/dashboard');
-    } catch (error: any) {
-      setError(error.message || 'Registration failed');
+      const fakeEmail = `${phone}@propman.co.ke`;
+
+      // 1. Create user in Supabase Auth
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: fakeEmail,
+        password,
+        options: {
+          data: {
+            full_name: ownerName,
+            phone,
+          },
+        },
+      });
+
+      if (signUpError) throw signUpError;
+
+      const userId = signUpData.user?.id;
+
+      // 2. Store extra details in landlords table
+      const { error: insertError } = await supabase.from("landlords").insert({
+        id: userId,
+        business_name: businessName,
+        owner_name: ownerName,
+        phone,
+        email: fakeEmail,
+      });
+
+      if (insertError) throw insertError;
+
+      // 3. Redirect to dashboard
+      navigate("/dashboard");
+    } catch (err: any) {
+      setError(err.message || "Registration failed.");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-teal-50 flex items-center justify-center px-4">
-      <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
-        <div className="text-center mb-8">
-          <Building2 className="h-12 w-12 text-blue-600 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900">Create Account</h1>
-          <p className="text-gray-600 mt-2">Start managing your rentals with PropMan Kenya</p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+      <Card className="w-full max-w-md shadow-xl">
+        <CardContent className="space-y-4">
+          <h2 className="text-xl font-bold text-center">Create Your Account</h2>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
-              <AlertCircle className="h-5 w-5 text-red-500 mr-3" />
-              <span className="text-red-700">{error}</span>
-            </div>
-          )}
+          {error && <div className="text-red-500 text-sm text-center">{error}</div>}
 
-          <input
-            type="text"
-            name="businessName"
+          <Input
             placeholder="Business Name"
-            value={formData.businessName}
-            onChange={handleChange}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-            required
+            value={businessName}
+            onChange={(e) => setBusinessName(e.target.value)}
+          />
+          <Input
+            placeholder="Owner Name"
+            value={ownerName}
+            onChange={(e) => setOwnerName(e.target.value)}
+          />
+          <Input
+            placeholder="Phone Number (e.g., +2547xxxxxxx)"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+          <Input
+            placeholder="Password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
           />
 
-          <input
-            type="text"
-            name="ownerName"
-            placeholder="Owner Full Name"
-            value={formData.ownerName}
-            onChange={handleChange}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-            required
-          />
-
-          <input
-            type="tel"
-            name="phone"
-            placeholder="Phone Number (e.g. +254712345678)"
-            value={formData.phone}
-            onChange={handleChange}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-            required
-          />
-
-          <div className="relative">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              name="password"
-              placeholder="Password"
-              value={formData.password}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg pr-12"
-              required
-            />
-            <button
-              type="button"
-              className="absolute inset-y-0 right-0 pr-3 flex items-center"
-              onClick={() => setShowPassword(!showPassword)}
-            >
-              {showPassword ? <EyeOff className="h-5 w-5 text-gray-400" /> : <Eye className="h-5 w-5 text-gray-400" />}
-            </button>
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+          <Button
+            disabled={loading}
+            className="w-full"
+            onClick={handleRegister}
           >
-            {isLoading ? (
-              <>
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                Creating Account...
-              </>
-            ) : (
-              'Create Account'
-            )}
-          </button>
-
-          <div className="text-center">
-            <p className="text-gray-600">
-              Already have an account?{' '}
-              <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">
-                Sign In
-              </Link>
-            </p>
-          </div>
-        </form>
-      </div>
+            {loading ? "Creating Account..." : "Register"}
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
-};
-
-export default RegisterPage;
+}
