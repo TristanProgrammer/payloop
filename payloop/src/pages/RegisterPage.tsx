@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -7,6 +6,9 @@ import {
 } from 'lucide-react';
 
 const RegisterPage = () => {
+  const navigate = useNavigate(); // ✅ moved up
+  const { register, user } = useAuth();
+
   const [formData, setFormData] = useState({
     businessName: '',
     ownerName: '',
@@ -19,16 +21,13 @@ const RegisterPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { register } = useAuth();
-  const { user } = useAuth();
 
-useEffect(() => {
-  if (user) {
-    navigate('/dashboard');
-  }
-}, [user, navigate]);
-
-  const navigate = useNavigate();
+  // ✅ redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -53,7 +52,7 @@ useEffect(() => {
 
     try {
       await register(formData);
-      navigate('/dashboard'); // rely on context to confirm login
+      // Navigate will be handled by useEffect after user context updates
     } catch (err: any) {
       console.error("Register failed:", err);
       setError(err.message || 'Registration failed. Try again.');
