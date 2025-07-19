@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Building2, Eye, EyeOff, AlertCircle, RefreshCw } from 'lucide-react';
@@ -12,16 +11,15 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
-  const { user } = useAuth();
 
-useEffect(() => {
-  if (user) {
-    navigate('/dashboard');
-  }
-}, [user, navigate]);
+  const { login, user } = useAuth(); // single destructure
+  const navigate = useNavigate(); // moved before useEffect ✅
 
-  const navigate = useNavigate();
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
