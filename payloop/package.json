@@ -3,12 +3,13 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview --host --port $PORT",
-  },
+ "scripts": {
+  "dev": "vite",
+  "build": "vite build",
+  "lint": "eslint .",
+  "preview": "vite preview --host --port $PORT"
+},
+
   "dependencies": {
     "@supabase/supabase-js": "^2.52.0",
     "date-fns": "^2.29.3",
