@@ -32,7 +32,7 @@ interface RegisterData {
   businessName: string;
   ownerName: string;
   phone: string;
-  email: string;
+  email?: string; // optional, fallback is phone + @propman
   password: string;
 }
 
@@ -40,32 +40,26 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        loadUserData(session.user.id);
+    // Get existing session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user?.id) {
+        await loadUserData(session.user.id);
       } else {
         setIsLoading(false);
       }
     });
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setSession(session);
-      if (session?.user) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user?.id) {
         await loadUserData(session.user.id);
       } else {
         setUser(null);
@@ -76,151 +70,128 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  const loadUserData = async (userId: string) => {
-    try {
-      const { data: landlord, error } = await supabase
-        .from('landlords')
-        .select('*')
-        .eq('uid', userId)
-        .maybeSingle();
+  const loadUserData = async (uid: string) => {
+    const { data, error } = await supabase
+      .from('landlords')
+      .select('*')
+      .eq('id', uid)
+      .single();
 
-      if (error) {
-        console.error('Error loading user data:', error);
-        return;
-      }
-
-      if (landlord) {
-        const userData: User = {
-          id: landlord.id,
-          businessName: landlord.business_name,
-          ownerName: landlord.owner_name,
-          phone: landlord.phone,
-          email: landlord.email,
-          subscriptionPlan: landlord.subscription_plan,
-          subscriptionStatus: landlord.subscription_status,
-          trialEndsAt: landlord.trial_ends_at ? new Date(landlord.trial_ends_at) : null,
-          subscriptionEndsAt: landlord.subscription_ends_at ? new Date(landlord.subscription_ends_at) : null,
-          createdAt: new Date(landlord.created_at),
-        };
-        setUser(userData);
-      }
-    } catch (error) {
-      console.error('Error loading user data:', error);
+    if (error || !data) {
+      console.error('Failed to load user data', error);
+      return;
     }
+
+    const u: User = {
+      id: data.id,
+      businessName: data.business_name,
+      ownerName: data.owner_name,
+      phone: data.phone,
+      email: data.email,
+      subscriptionPlan: data.subscription_plan,
+      subscriptionStatus: data.subscription_status,
+      trialEndsAt: data.trial_ends_at ? new Date(data.trial_ends_at) : null,
+      subscriptionEndsAt: data.subscription_ends_at ? new Date(data.subscription_ends_at) : null,
+      createdAt: new Date(data.created_at),
+    };
+
+    setUser(u);
   };
 
-  const login = async (phone: string, password: string): Promise<void> => {
+  const login = async (phone: string, password: string) => {
     setIsLoading(true);
     try {
-      // For demo purposes, we'll use email/password auth with Supabase
-      // In production, you might want to implement phone-based auth
       const email = phone.includes('@') ? phone : `${phone}@propman.co.ke`;
-      
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
-        throw new Error(error.message);
-      }
+      if (error || !data.user) throw new Error(error?.message || 'Invalid credentials');
 
-      if (data.user) {
-        await loadUserData(data.user.id);
-      }
-    } catch (error: any) {
-      throw new Error(error.message || 'Login failed');
+      await loadUserData(data.user.id);
+    } catch (err: any) {
+      throw new Error(err.message || 'Login failed');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const register = async (userData: RegisterData): Promise<void> => {
+  const register = async (userData: RegisterData) => {
     setIsLoading(true);
     try {
-      // Create auth user
+      const email = userData.email || `${userData.phone}@propman.co.ke`;
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: userData.email,
+        email,
         password: userData.password,
       });
 
-      if (authError) {
-        throw new Error(authError.message);
-      }
+      if (authError) throw new Error(authError.message);
 
-      if (authData.user) {
-        // Create landlord record
-        const landlordData: LandlordInsert = {
-          id: authData.user.id,
-          business_name: userData.businessName,
-          owner_name: userData.ownerName,
-          phone: userData.phone,
-          email: userData.email,
-          subscription_plan: 'trial',
-          subscription_status: 'active',
-          trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        };
+      const uid = authData.user?.id;
+      if (!uid) throw new Error('User creation failed');
 
-        const { error: insertError } = await supabase
-          .from('landlords')
-          .insert(landlordData);
+      const landlordData: LandlordInsert = {
+        id: uid,
+        business_name: userData.businessName,
+        owner_name: userData.ownerName,
+        phone: userData.phone,
+        email,
+        subscription_plan: 'trial',
+        subscription_status: 'active',
+        trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      };
 
-        if (insertError) {
-          throw new Error(insertError.message);
-        }
+      const { error: insertError } = await supabase
+        .from('landlords')
+        .insert(landlordData);
 
-        await loadUserData(authData.user.id);
-      }
-    } catch (error: any) {
-      throw new Error(error.message || 'Registration failed');
+      if (insertError) throw new Error(insertError.message);
+
+      await loadUserData(uid);
+    } catch (err: any) {
+      throw new Error(err.message || 'Registration failed');
     } finally {
       setIsLoading(false);
     }
   };
 
   const updateUser = async (updates: Partial<User>) => {
-    if (!user || !session) return;
-
+    if (!user) return;
     setIsLoading(true);
     try {
-      const updateData: LandlordUpdate = {};
-      
-      if (updates.businessName) updateData.business_name = updates.businessName;
-      if (updates.ownerName) updateData.owner_name = updates.ownerName;
-      if (updates.phone) updateData.phone = updates.phone;
-      if (updates.email) updateData.email = updates.email;
-      if (updates.subscriptionPlan) updateData.subscription_plan = updates.subscriptionPlan;
-      if (updates.subscriptionStatus) updateData.subscription_status = updates.subscriptionStatus;
-      if (updates.trialEndsAt) updateData.trial_ends_at = updates.trialEndsAt.toISOString();
-      if (updates.subscriptionEndsAt) updateData.subscription_ends_at = updates.subscriptionEndsAt.toISOString();
+      const updateData: LandlordUpdate = {
+        ...(updates.businessName && { business_name: updates.businessName }),
+        ...(updates.ownerName && { owner_name: updates.ownerName }),
+        ...(updates.phone && { phone: updates.phone }),
+        ...(updates.email && { email: updates.email }),
+        ...(updates.subscriptionPlan && { subscription_plan: updates.subscriptionPlan }),
+        ...(updates.subscriptionStatus && { subscription_status: updates.subscriptionStatus }),
+        ...(updates.trialEndsAt && { trial_ends_at: updates.trialEndsAt.toISOString() }),
+        ...(updates.subscriptionEndsAt && { subscription_ends_at: updates.subscriptionEndsAt.toISOString() }),
+      };
 
       const { error } = await supabase
         .from('landlords')
         .update(updateData)
         .eq('id', user.id);
 
-      if (error) {
-        throw new Error(error.message);
-      }
+      if (error) throw new Error(error.message);
 
-      // Update local user state
-      setUser(prev => prev ? { ...prev, ...updates } : null);
-    } catch (error) {
-      console.error('Error updating user:', error);
-      throw error;
+      setUser({ ...user, ...updates });
+    } catch (err: any) {
+      console.error('Update error:', err);
+      throw err;
     } finally {
       setIsLoading(false);
     }
   };
 
   const logout = async () => {
-    try {
-      await supabase.auth.signOut();
-      setUser(null);
-      setSession(null);
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
+    await supabase.auth.signOut();
+    setUser(null);
   };
 
   return (
