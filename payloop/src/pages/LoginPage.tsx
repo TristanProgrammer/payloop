@@ -12,6 +12,14 @@ const LoginPage = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
+  const { user } = useAuth();
+
+useEffect(() => {
+  if (user) {
+    navigate('/dashboard');
+  }
+}, [user, navigate]);
+
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
