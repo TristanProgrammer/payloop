@@ -4,28 +4,42 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
   const { supabase } = useAuth();
 
-  const [businessName, setBusinessName] = useState("");
-  const [ownerName, setOwnerName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
+  const [formData, setFormData] = useState({
+    email: "",
+    businessName: "",
+    ownerName: "",
+    phone: "",
+    password: "",
+  });
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
   const handleRegister = async () => {
+    const { email, phone, password, businessName, ownerName } = formData;
+
+    if (!email || !phone || !password || !businessName || !ownerName) {
+      setError("All fields are required.");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
     try {
-      const fakeEmail = `${phone}@propman.co.ke`;
-
-      // 1. Create user in Supabase Auth
+      // Step 1: Register user in Supabase Auth
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: fakeEmail,
+        email,
         password,
         options: {
           data: {
@@ -38,22 +52,23 @@ export default function RegisterPage() {
       if (signUpError) throw signUpError;
 
       const userId = signUpData.user?.id;
+      if (!userId) throw new Error("Signup successful but user ID not returned.");
 
-      // 2. Store extra details in landlords table
+      // Step 2: Insert into landlords table
       const { error: insertError } = await supabase.from("landlords").insert({
         id: userId,
         business_name: businessName,
         owner_name: ownerName,
         phone,
-        email: fakeEmail,
+        email,
       });
 
       if (insertError) throw insertError;
 
-      // 3. Redirect to dashboard
       navigate("/dashboard");
     } catch (err: any) {
-      setError(err.message || "Registration failed.");
+      console.error(err);
+      setError(err.message || "Something went wrong during registration.");
     } finally {
       setLoading(false);
     }
@@ -61,32 +76,53 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-      <Card className="w-full max-w-md shadow-xl">
-        <CardContent className="space-y-4">
-          <h2 className="text-xl font-bold text-center">Create Your Account</h2>
+      <Card className="w-full max-w-md shadow-lg border">
+        <CardContent className="space-y-5 py-8">
+          <h2 className="text-2xl font-bold text-center text-gray-800">Create Your Landlord Account</h2>
 
-          {error && <div className="text-red-500 text-sm text-center">{error}</div>}
+          {error && (
+            <div className="flex items-center text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2 text-sm">
+              <AlertCircle className="w-4 h-4 mr-2" />
+              {error}
+            </div>
+          )}
 
           <Input
+            type="email"
+            name="email"
+            placeholder="Email Address"
+            value={formData.email}
+            onChange={handleChange}
+            required
+          />
+          <Input
+            name="businessName"
             placeholder="Business Name"
-            value={businessName}
-            onChange={(e) => setBusinessName(e.target.value)}
+            value={formData.businessName}
+            onChange={handleChange}
+            required
           />
           <Input
-            placeholder="Owner Name"
-            value={ownerName}
-            onChange={(e) => setOwnerName(e.target.value)}
+            name="ownerName"
+            placeholder="Owner's Full Name"
+            value={formData.ownerName}
+            onChange={handleChange}
+            required
           />
           <Input
-            placeholder="Phone Number (e.g., +2547xxxxxxx)"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            name="phone"
+            placeholder="Phone Number (e.g. +254712345678)"
+            value={formData.phone}
+            onChange={handleChange}
+            required
           />
           <Input
-            placeholder="Password"
             type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            name="password"
+            placeholder="Password"
+            value={formData.password}
+            onChange={handleChange}
+            required
           />
 
           <Button
@@ -94,8 +130,19 @@ export default function RegisterPage() {
             className="w-full"
             onClick={handleRegister}
           >
-            {loading ? "Creating Account..." : "Register"}
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Creating Account...
+              </>
+            ) : (
+              "Register"
+            )}
           </Button>
+
+          <p className="text-center text-sm text-gray-500">
+            Already have an account? <a href="/login" className="text-blue-600 hover:underline">Sign In</a>
+          </p>
         </CardContent>
       </Card>
     </div>
