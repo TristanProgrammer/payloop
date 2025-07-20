@@ -11,7 +11,6 @@ export default function RegisterPage() {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-
   const navigate = useNavigate();
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -19,38 +18,49 @@ export default function RegisterPage() {
     setLoading(true);
     setErrorMsg("");
 
-    const { data, error } = await supabase.auth.signUp({
+    // 1. Sign up
+    const { error: signupError } = await supabase.auth.signUp({
       email,
       password,
     });
 
-    if (error) {
-      setErrorMsg(error.message);
+    if (signupError) {
+      setErrorMsg(signupError.message);
       setLoading(false);
       return;
     }
 
-    // Check if user object exists
-    const user = data.user;
-    if (!user) {
-      setErrorMsg("Something went wrong. No user returned.");
+    // 2. Immediately sign in
+    const { data: signInData, error: signInError } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+    if (signInError || !signInData.user) {
+      setErrorMsg("Failed to auto-login after registration.");
       setLoading(false);
       return;
     }
 
-    // Update profile in 'profiles' table
-    const { error: profileError } = await supabase.from("profiles").update({
-      display_name: displayName,
-      phone: phone,
-    }).eq("id", user.id);
+    const userId = signInData.user.id;
+
+    // 3. Update the profile
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .upsert({
+        id: userId,
+        display_name: displayName,
+        phone: phone,
+      });
 
     if (profileError) {
-      setErrorMsg("Error saving user profile.");
+      setErrorMsg("Failed to update profile.");
       setLoading(false);
       return;
     }
 
-    // Auto redirect
+    // 4. Redirect
     navigate("/dashboard");
     setLoading(false);
   };
@@ -92,7 +102,9 @@ export default function RegisterPage() {
           required
         />
 
-        {errorMsg && <p className="text-red-500 text-sm text-center">{errorMsg}</p>}
+        {errorMsg && (
+          <p className="text-red-500 text-sm text-center">{errorMsg}</p>
+        )}
 
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? "Registering..." : "Register"}
