@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/input"; // This should exist
 import { Button } from "@/components/button"; // Your current button
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabase";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
