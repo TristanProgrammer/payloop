@@ -8,7 +8,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -19,7 +19,6 @@ export default function RegisterPage() {
     setLoading(true);
     setErrorMsg("");
 
-    // Register the user
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -31,43 +30,29 @@ export default function RegisterPage() {
       return;
     }
 
-    const userId = data?.user?.id;
-
-    if (!userId) {
-      setErrorMsg("Registration succeeded but user session not found.");
+    // Check if user object exists
+    const user = data.user;
+    if (!user) {
+      setErrorMsg("Something went wrong. No user returned.");
       setLoading(false);
       return;
     }
 
-    // Update additional profile info
-    const { error: updateError } = await supabase
-      .from("profiles")
-      .update({
-        display_name: displayName,
-        phone_number: phoneNumber,
-      })
-      .eq("id", userId);
+    // Update profile in 'profiles' table
+    const { error: profileError } = await supabase.from("profiles").update({
+      display_name: displayName,
+      phone: phone,
+    }).eq("id", user.id);
 
-    if (updateError) {
-      setErrorMsg(updateError.message);
+    if (profileError) {
+      setErrorMsg("Error saving user profile.");
       setLoading(false);
       return;
     }
 
-    // Explicitly sign in the user to get the session
-    const { error: loginError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (loginError) {
-      setErrorMsg("Account created but login failed. Please log in manually.");
-      setLoading(false);
-      return;
-    }
-
-    setLoading(false);
+    // Auto redirect
     navigate("/dashboard");
+    setLoading(false);
   };
 
   return (
@@ -76,9 +61,10 @@ export default function RegisterPage() {
         onSubmit={handleRegister}
         className="bg-white p-6 rounded-xl shadow-lg w-full max-w-md space-y-4"
       >
-        <h2 className="text-2xl font-bold text-center">Create an Account</h2>
+        <h2 className="text-2xl font-bold text-center">Register</h2>
 
         <Input
+          type="text"
           placeholder="Full Name"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
@@ -87,8 +73,8 @@ export default function RegisterPage() {
         <Input
           type="tel"
           placeholder="Phone Number"
-          value={phoneNumber}
-          onChange={(e) => setPhoneNumber(e.target.value)}
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
           required
         />
         <Input
@@ -106,9 +92,7 @@ export default function RegisterPage() {
           required
         />
 
-        {errorMsg && (
-          <p className="text-red-500 text-sm text-center">{errorMsg}</p>
-        )}
+        {errorMsg && <p className="text-red-500 text-sm text-center">{errorMsg}</p>}
 
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? "Registering..." : "Register"}
