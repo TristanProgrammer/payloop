@@ -13,8 +13,14 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setErrorMsg("");
+
+    if (!email || !password) {
+      setErrorMsg("Please enter your email and password.");
+      return;
+    }
+
+    setLoading(true);
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -22,7 +28,7 @@ export default function LoginPage() {
     });
 
     if (error) {
-      setErrorMsg(error.message);
+      setErrorMsg("Invalid credentials. Please try again.");
     } else {
       navigate("/dashboard");
     }
