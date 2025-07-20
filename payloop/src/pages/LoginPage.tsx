@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/components/input";
 import { Button } from "@/components/button";
 import { supabase } from "@/lib/supabaseClient";
 
