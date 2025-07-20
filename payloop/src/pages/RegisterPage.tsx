@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Input } from "@/components/input"; // This should exist
-import { Button } from "@/components/button"; // Your current button
+import { Input } from "@/components/input";
+import { Button } from "@/components/button";
 import { supabase } from "@/lib/supabase";
 
 export default function RegisterPage() {
@@ -11,6 +11,7 @@ export default function RegisterPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
   const navigate = useNavigate();
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -18,6 +19,7 @@ export default function RegisterPage() {
     setLoading(true);
     setErrorMsg("");
 
+    // Register the user
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -30,18 +32,38 @@ export default function RegisterPage() {
     }
 
     const userId = data?.user?.id;
-    if (userId) {
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({
-          display_name: displayName,
-          phone_number: phoneNumber,
-        })
-        .eq("id", userId);
 
-      if (updateError) {
-        setErrorMsg(updateError.message);
-      }
+    if (!userId) {
+      setErrorMsg("Registration succeeded but user session not found.");
+      setLoading(false);
+      return;
+    }
+
+    // Update additional profile info
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({
+        display_name: displayName,
+        phone_number: phoneNumber,
+      })
+      .eq("id", userId);
+
+    if (updateError) {
+      setErrorMsg(updateError.message);
+      setLoading(false);
+      return;
+    }
+
+    // Explicitly sign in the user to get the session
+    const { error: loginError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (loginError) {
+      setErrorMsg("Account created but login failed. Please log in manually.");
+      setLoading(false);
+      return;
     }
 
     setLoading(false);
