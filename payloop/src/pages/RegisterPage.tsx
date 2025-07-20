@@ -18,11 +18,15 @@ export default function RegisterPage() {
     setLoading(true);
     setErrorMsg("");
 
+    console.log("🟡 Starting signup...");
+
     // 1. Sign up
-    const { error: signupError } = await supabase.auth.signUp({
+    const { data: signUpData, error: signupError } = await supabase.auth.signUp({
       email,
       password,
     });
+
+    console.log("🟢 Sign up result:", signUpData, signupError);
 
     if (signupError) {
       setErrorMsg(signupError.message);
@@ -30,12 +34,15 @@ export default function RegisterPage() {
       return;
     }
 
+    console.log("🟡 Signing in...");
+
     // 2. Immediately sign in
-    const { data: signInData, error: signInError } =
-      await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    console.log("🟢 Sign in result:", signInData, signInError);
 
     if (signInError || !signInData.user) {
       setErrorMsg("Failed to auto-login after registration.");
@@ -45,20 +52,24 @@ export default function RegisterPage() {
 
     const userId = signInData.user.id;
 
+    console.log("🟡 Updating profile...");
+
     // 3. Update the profile
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .upsert({
-        id: userId,
-        display_name: displayName,
-        phone: phone,
-      });
+    const { error: profileError } = await supabase.from("profiles").upsert({
+      id: userId,
+      display_name: displayName,
+      phone: phone,
+    });
+
+    console.log("🟢 Profile update result:", profileError);
 
     if (profileError) {
       setErrorMsg("Failed to update profile.");
       setLoading(false);
       return;
     }
+
+    console.log("✅ Registration complete. Redirecting to dashboard...");
 
     // 4. Redirect
     navigate("/dashboard");
