@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Input } from "@/components/ui/input"; // This should exist
+import { Input } from "@/components/input"; // This should exist
 import { Button } from "@/components/button"; // Your current button
 import { supabase } from "@/lib/supabaseClient";
 
